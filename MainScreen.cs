@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
@@ -62,37 +63,23 @@ namespace Freezeframes_reader
                 }
 
                 openedFolder.Text = "Папка: " + path;
+                tabControl1.SelectedIndex = 0;
             }
             else
             {
 
             }
-
-            if (tempOpenedFileCount == 1)
-            {
-                openedFileStatus.Text = "Найден 1 файл";
-            }
-            else
-            {
-                if (tempOpenedFileCount >= 2 && tempOpenedFileCount <= 4)
-                {
-                    openedFileStatus.Text = "Найдено " + tempOpenedFileCount + " файла";
-                }
-                else
-                    openedFileStatus.Text = "Найдено " + tempOpenedFileCount + " файлов";
-            }
-
-
         }
 
         private void addTab(string endName, string[] errorDescription, CurveList chart)
         {
             TabPage tabPage = new TabPage();
             GroupBox groupBox = new GroupBox();
+            Panel panel = new Panel();
             ZedGraphControl graphControl = new ZedGraphControl();
 
-            tabPage.Name = endName;
-            tabPage.Text = errorDescription[0] + " " + errorDescription[1];
+            tabPage.Name = endName + "|" + errorDescription[0] + "|" + errorDescription[1] + "|" + errorDescription[2];
+            tabPage.Text = "freezeframe." + endName;
 
             groupBox.Dock = DockStyle.Right;
             groupBox.Location = new Point(803, 3);
@@ -102,10 +89,14 @@ namespace Freezeframes_reader
             groupBox.TabStop = false;
             groupBox.Text = "Графики";
 
+            panel.AutoScroll = true;
+            panel.Dock = DockStyle.Fill;
+            panel.Location = new Point(0, 0);
+            panel.Name = "scroll" + endName;
+
             graphControl.Dock = DockStyle.Fill;
-            graphControl.Location = new Point(3, 3);
-            graphControl.Margin = new Padding(3, 3, 4, 3);
-            graphControl.Name = "graph " + endName;
+            graphControl.Location = new Point(0, 0);
+            graphControl.Name = "graph" + endName;
             graphControl.ScrollGrace = 0D;
             graphControl.ScrollMaxX = 4D;
             graphControl.ScrollMaxY = 0D;
@@ -114,31 +105,75 @@ namespace Freezeframes_reader
             graphControl.ScrollMinY = 0D;
             graphControl.ScrollMinY2 = 0D;
             graphControl.Size = new Size(800, 581);
-            graphControl.TabIndex = 1;
             graphControl.GraphPane.Title.Text = "";
             graphControl.GraphPane.Legend.IsVisible = false;
             graphControl.GraphPane.XAxis.Title.Text = "";
             graphControl.GraphPane.YAxis.Title.Text = "";
+            graphControl.GraphPane.IsFontsScaled = false;
+            graphControl.ZoomEvent += graphZoomEvent;
+            graphControl.MouseMoveEvent += graphMouseMoveEvent;
 
             graphControl.GraphPane.CurveList = chart;
-            graphControl.GraphPane.AxisChange();
 
+            //**** Настройка масштабирования графиков ****
+            graphControl.GraphPane.YAxis.Scale.Min = -3500;
+            graphControl.GraphPane.YAxis.Scale.Max = 3500;
+            graphControl.GraphPane.XAxis.Scale.Min = -3.9;
+            graphControl.GraphPane.XAxis.Scale.Max = 1;
 
+            //**** Настройка магнитуд осей ****
+            graphControl.GraphPane.XAxis.Scale.MajorStep = 1.0;
+            graphControl.GraphPane.XAxis.Scale.MinorStep = 0.1;
+            graphControl.GraphPane.XAxis.Scale.FontSpec.Size = 10;
 
-            for (int i = 0; i < 16; i++)
+            graphControl.GraphPane.YAxis.Scale.MajorStep = 500;
+            graphControl.GraphPane.YAxis.Scale.MinorStep = 100;
+            graphControl.GraphPane.YAxis.Scale.FontSpec.Size = 10;
+
+            //**** Настройка сетки графиков ****
+            //Видимость сеток
+            graphControl.GraphPane.XAxis.MinorGrid.IsVisible = true;            
+            graphControl.GraphPane.XAxis.MajorGrid.IsVisible = true;
+            graphControl.GraphPane.YAxis.MinorGrid.IsVisible = true;
+            graphControl.GraphPane.YAxis.MajorGrid.IsVisible = true;
+
+            //Типы и цвет линии сеток 
+            graphControl.GraphPane.XAxis.MinorGrid.DashOn = 1;
+            graphControl.GraphPane.XAxis.MinorGrid.DashOff = 2;
+            graphControl.GraphPane.XAxis.MinorGrid.Color = Color.Gray;
+
+            graphControl.GraphPane.XAxis.MajorGrid.DashOn = 10;
+            graphControl.GraphPane.XAxis.MajorGrid.DashOff = 5;
+            graphControl.GraphPane.XAxis.MajorGrid.Color = Color.Gray;
+
+            graphControl.GraphPane.YAxis.MinorGrid.DashOn = 1;
+            graphControl.GraphPane.YAxis.MinorGrid.DashOff = 2;
+            graphControl.GraphPane.YAxis.MinorGrid.Color = Color.Gray;
+
+            graphControl.GraphPane.YAxis.MajorGrid.DashOn = 10;
+            graphControl.GraphPane.YAxis.MajorGrid.DashOff = 5;
+            graphControl.GraphPane.YAxis.MajorGrid.Color = Color.Gray;
+
+            graphControl.AxisChange();
+            graphControl.Invalidate();
+
+            for (int i = 0; i < chart.Count; i++)
             {
                 CheckBox checkBox = new CheckBox();
-                checkBox.Text = "graph " + endName + " " + i;
+                //checkBox.Text = "graph " + endName + " " + i;
+                checkBox.Text = chart.ElementAt(i).Label.Text;
                 checkBox.Name = endName + "|" + i;
-                checkBox.Location = new Point(15, 22 + i * 25);
+                checkBox.Location = new Point(15, 3 + i * 25);                
+                checkBox.Checked = true;
                 checkBox.CheckedChanged += changeGraphVisible;
 
-                groupBox.Controls.Add(checkBox);
+                panel.Controls.Add(checkBox);
             }
+            groupBox.Controls.Add(panel);
 
             tabPage.Controls.Add(graphControl);
             tabPage.Controls.Add(groupBox);
-            tabControl1.Controls.Add(tabPage);
+            tabControl1.Controls.Add(tabPage);            
         }
 
         #region "Обработчики нажатия кнопок меню"
@@ -258,7 +293,8 @@ namespace Freezeframes_reader
 
                 for (int i = 2; i < curveCount; i++)
                 {
-                    curveList.Add(new LineItem(curveNames[i], curveData.ElementAt(1), curveData.ElementAt(i), Color.Blue, SymbolType.None));
+
+                    curveList.Add(new LineItem(curveNames[i], curveData.ElementAt(1), curveData.ElementAt(i), Color.Red, SymbolType.None));
                 }
 
             }
@@ -277,15 +313,106 @@ namespace Freezeframes_reader
         private void changeGraphVisible(object sender, EventArgs e)
         {
             CheckBox checkbox = (CheckBox)sender;
-            //MessageBox.Show(checkbox.Name + " " + (checkbox.Checked ? "true" : "false"));
+
+            string graphName = "graph" + checkbox.Name.Split("|")[0];
+
+            ZedGraphControl graph = (ZedGraphControl)tabControl1.SelectedTab.Controls[graphName];
+            try 
+            { 
+                graph.GraphPane.CurveList.Find(x => x.Label.Text.Contains(checkbox.Text)).IsVisible = checkbox.Checked;
+                graph.Invalidate();
+            }
+            catch { }
+
         }
 
         private void tabControl1_Selecting(object sender, TabControlCancelEventArgs e)
         {
             if (e.TabPageIndex != -1)
             {
+                try
+                {
+                    string[] errorDescription = e.TabPage.Name.Split("|");
+                    openedFileStatus.Text = "freezeframe." + errorDescription[0] + " Error code: " + errorDescription[1] + " Time: " + errorDescription[2] + " " + errorDescription[3].Replace(".", ":");
+                }
+                catch { }
+                
                 //MessageBox.Show("Hello");
             }            
+        }
+
+        private void graphZoomEvent(ZedGraphControl sender, ZoomState oldState, ZoomState newState)
+        {            
+            GraphPane pane = sender.GraphPane;
+
+            //MessageBox.Show(pane.XAxis.Scale.Min + "  " + pane.XAxis.Scale.Max + Environment.NewLine + pane.YAxis.Scale.Min + "  " + pane.YAxis.Scale.Max);
+
+            if (pane.XAxis.Scale.Min <= -3.9)
+            {
+                pane.XAxis.Scale.Min = -3.9;
+            }
+
+            if (pane.XAxis.Scale.Max >= 1)
+            {
+                pane.XAxis.Scale.Max = 1;
+            }
+
+            if (pane.YAxis.Scale.Min <= -3500)
+            {
+                pane.YAxis.Scale.Min = -3500;
+            }
+
+            if (pane.YAxis.Scale.Max >= 3500)
+            {
+                pane.YAxis.Scale.Max = 3500;
+            }
+
+            double diff = pane.YAxis.Scale.Max - pane.YAxis.Scale.Min;
+
+            if (diff > 1000)
+            {
+                pane.YAxis.Scale.MajorStep = 500;
+                pane.YAxis.Scale.MinorStep = 100;
+            }
+            else if(diff < 1000 && diff > 100)
+            {
+                pane.YAxis.Scale.MajorStep = 100;
+                pane.YAxis.Scale.MinorStep = 10;
+            }
+            else if (diff < 100)
+            {
+                pane.YAxis.Scale.MajorStep = 10;
+                pane.YAxis.Scale.MinorStep = 1;
+            }
+            
+        }
+
+        private bool graphMouseMoveEvent(ZedGraphControl sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            GraphPane pane = sender.GraphPane;
+            if (e.Button == MouseButtons.Middle || (e.Button == MouseButtons.Left && (ModifierKeys & Keys.Control) == Keys.Control))
+            {
+                if (pane.XAxis.Scale.Min <= -3.9)
+                {
+                    pane.XAxis.Scale.Min = -3.9;
+                }
+
+                if (pane.XAxis.Scale.Max >= 1)
+                {
+                    pane.XAxis.Scale.Max = 1;
+                }
+
+                if (pane.YAxis.Scale.Min <= -3500)
+                {
+                    pane.YAxis.Scale.Min = -3500;
+                }
+
+                if (pane.YAxis.Scale.Max >= 3500)
+                {
+                    pane.YAxis.Scale.Max = 3500;
+                }                
+            }
+            return false;
         }
     }
 }
